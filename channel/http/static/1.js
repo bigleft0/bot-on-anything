@@ -1,4 +1,3 @@
-
 function ConvState(wrapper, form, params) {
     this.id='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = Math.random() * 16 | 0,
@@ -12,7 +11,7 @@ function ConvState(wrapper, form, params) {
         $(this.wrapper).find('#messages').stop().animate({ scrollTop: $(this.wrapper).find('#messages')[0].scrollHeight }, 600);
     }.bind(this);
 };
-ConvState.prototype.printAnswer = function (answer = '我是ChatGPT, 一个由OpenAI训练的大型语言模型, 我旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。输入 #清除记忆 可以开始新的话题探索。输入 画xx 可以为你画一张图片。我无法对事实性与实时性问题提供准确答复，请慎重对待回答。') {
+ConvState.prototype.printAnswer = function (answer = '欢迎关注木头大左，我是一个由OpenAI训练的大型语言模型, 可以选择数据来源是ChatGPT还是New Bing，我旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。输入 #清除记忆 可以开始新的话题探索。输入 画xx 可以为你画一张图片。我无法对事实性与实时性问题提供准确答复，请慎重对待回答。') {
     setTimeout(function () {
         var messageObj = $(this.wrapper).find('.message.typing');
         answer = marked.parse(answer);
@@ -62,7 +61,7 @@ ConvState.prototype.sendMessage = function (msg) {
         $(this).addClass('conv-form-wrapper');
 
         var parameters = $.extend(true, {}, {
-            placeHolder: 'Type Here',
+            placeHolder: '请输入',
             typeInputUi: 'textarea',
             formIdName: 'convForm',
             inputIdName: 'userInput',
