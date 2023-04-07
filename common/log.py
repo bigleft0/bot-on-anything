@@ -12,6 +12,12 @@ def _get_logger():
     console_handle.setFormatter(logging.Formatter('[%(levelname)s][%(asctime)s][%(filename)s:%(lineno)d] - %(message)s',
                                                   datefmt='%Y-%m-%d %H:%M:%S'))
     log.addHandler(console_handle)
+    #增加日志文件
+    #file_handle = logging.FileHandler(sys.stdout, filename=os.path.join(os.path.abspath(os.path.dirname(__file__)), ".log","bot.info.log")) 
+    file_handle = logging.FileHandler("bot.info.log")
+    file_handle.setFormatter(logging.Formatter('[%(levelname)s][%(asctime)s][%(filename)s:%(lineno)d] - %(message)s',
+                                                  datefmt='%Y-%m-%d %H:%M:%S'))                                           
+    log.addHandler(file_handle)
     return log
 
 def close_log():
