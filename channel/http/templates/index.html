@@ -19,6 +19,30 @@
         <div id="chat" class="conv-form-wrapper">
         </div>
     </div>
+    <div id="radio-buttons">
+        <label>
+          <input type="radio" name="model" value="chatgpt" checked> ChatGPT
+        </label>
+        <label>
+          <input type="radio" name="model" value="bing"> New Bing
+        </label>
+    </div>
+    <!-- <script>
+        // 选中 body 元素，向其中插入 radio-buttons 元素
+const body = document.querySelector('body');
+const radioButtons = document.createElement('div');
+radioButtons.id = 'radio-buttons';
+body.appendChild(radioButtons);
+
+// 向 radio-buttons 元素中动态添加两个单选框
+const chatgptLabel = document.createElement('label');
+chatgptLabel.innerHTML = '<input type="radio" name="model" value="chatgpt" checked> ChatGPT';
+radioButtons.appendChild(chatgptLabel);
+
+const newbingLabel = document.createElement('label');
+newbingLabel.innerHTML = '<input type="radio" name="model" value="newbing"> New Bing';
+radioButtons.appendChild(newbingLabel);
+    </script> -->
 <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
 <script src="https://cdn.bootcdn.net/ajax/libs/marked/4.2.12/marked.min.js"></script>
 <script src="https://cdn.bootcdn.net/ajax/libs/autosize.js/6.0.1/autosize.min.js"></script>
