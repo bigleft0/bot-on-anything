@@ -71,7 +71,7 @@ class HttpChannel(Channel):
             context['type'] = 'IMAGE_CREATE'
         id = data["id"]
         context['from_user_id'] = str(id)
-        context['model_type'] = data['model_type']
+        context['model_type'] = data.get('model_type','')
         reply = super().build_reply_content(data["msg"], context)
         if img_match_prefix:
             if not isinstance(reply, list):
