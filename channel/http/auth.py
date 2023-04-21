@@ -6,7 +6,14 @@ import time
 from flask import jsonify, request
 from common import const
 from config import channel_conf
+import sys
+import os
 
+this_dir = os.path.dirname(__file__)
+sys.path.append(this_dir)
+sys.path.append(os.path.join(this_dir, '..'))
+sys.path.append(os.path.join(this_dir, '..', 'database'))
+from database import admin_user
 
 class Auth():
     def __init__(self, login):
@@ -16,7 +23,7 @@ class Auth():
         super(Auth, self).__init__()
 
     @staticmethod
-    def encode_auth_token(user_id, login_time):
+    def encode_auth_token(user_id, password, login_time):
         """
         生成认证Token
         :param user_id: int
@@ -30,6 +37,7 @@ class Auth():
                 'iat': datetime.datetime.utcnow(),  # 开始时间
                 'data': {
                     'id': user_id,
+                    'password':password,
                     'login_time': login_time
                 }
             }
@@ -62,18 +70,19 @@ class Auth():
             return '无效Token'
 
 
-def authenticate(password):
+def authenticate(user_id, password):
     """
     用户登录，登录成功返回token
     :param password:
     :return: json
     """
+    
     authPassword = channel_conf(const.HTTP).get('http_auth_password')
-    if (authPassword != password):
+    if (not admin_user.AdminUserDao().check(user_id,password)):
         return False
     else:
         login_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        token = Auth.encode_auth_token(password, login_time)
+        token = Auth.encode_auth_token(user_id, password, login_time)
         return token
 
 
@@ -94,11 +103,12 @@ def identify(request):
             if not isinstance(payload, str):
                 authPassword = channel_conf(
                     const.HTTP).get('http_auth_password')
-                password = payload['data']['id']
-                if (password != authPassword):
-                    return False
-                else:
+                user_id = payload['data']['id']
+                password = payload['data'].get('password')
+                if (admin_user.AdminUserDao().check(user_id,password) and admin_user.AdminUserDao().check_times(user_id)):
                     return True
+                else:
+                    return False
         return False
  
     except jwt.ExpiredSignatureError:
