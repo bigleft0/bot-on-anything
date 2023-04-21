@@ -1,93 +1,163 @@
 # encoding:utf-8
 
+from uuid import uuid4
+from flask import request, Response, make_response
 import json
-from channel.http import auth
-from flask import Flask, request, render_template, make_response
-from datetime import timedelta
-from common import const
-from common import functions
-from config import channel_conf
-from config import channel_conf_val
-from channel.channel import Channel
-import config
+import flask
 from flask_sqlalchemy import SQLAlchemy  # 使得数据库开始连接
+import redis
 
-http_app = Flask(__name__,)
-# 自动重载模板文件
-http_app.jinja_env.auto_reload = True
-http_app.config['TEMPLATES_AUTO_RELOAD'] = True
+from sqlalchemy.ext.declarative import declarative_base
+import uuid
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
+import sys
+import os
 
-# 设置静态文件缓存过期时间
-http_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=10)
-# 连接或创建数据库
-http_app.config['SQLALCHEMY_DATABASE_URI'] = r'sqlite:///' + config.get_db_uri()
-# # 动态追踪修改设置，如未设置只会提示警告
-http_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
-db = SQLAlchemy()
-
-
-@http_app.route("/chat", methods=['POST'])
-def chat():
-    if (auth.identify(request) == False):
-        return
-    data = json.loads(request.data)
-    if data:
-        msg = data['msg']
-        if not msg:
-            return
-        reply_text = HttpChannel().handle(data=data)
-        return {'result': reply_text}
-
-
-@http_app.route("/", methods=['GET'])
-def index():
-    if (auth.identify(request) == False):
-        return login()
-    return render_template('index.html')
+this_dir = os.path.dirname(__file__)
+sys.path.append(this_dir)
+sys.path.append(os.path.join(this_dir, '..'))
+sys.path.append(os.path.join(this_dir, '..', 'http'))
+print(sys.path)
+from http_channel import db
+from http_channel import http_app as app
+import logging as log
+import config
 
 
-@http_app.route("/login", methods=['POST', 'GET'])
-def login():
-    response = make_response("<html></html>", 301)
-    response.headers.add_header('content-type', 'text/plain')
-    response.headers.add_header('location', './')
-    if (auth.identify(request) == True):
-        return response
-    else:
-        if request.method == "POST":
-            token = auth.authenticate(request.form['password'])
-            if (token != False):
-                response.set_cookie(key='Authorization', value=token)
-                return response
+redis_db = config.get_redis()
+# app = http_app
+# db = http_channel.db
+# db = SQLAlchemy()
+# db.init_app(app)
+# 相当于Django model
+Base = declarative_base()
+REDIS_KEY = "bot.user.times"
+# 普通帐户使用次数
+USE_TIMES = 5
+# 过期时间(秒)
+EXPIRE_TIME = 60*10
+
+class AdminUser(Base):
+    __tablename__ = "tb_admin_user"
+    # 表结构
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_name = Column(String(64), nullable=True)
+    code = Column(String(64), nullable=True)
+    pwd = Column(String(64), nullable=True)
+    type = Column(Integer, nullable=True)
+    create_time = Column(String(64), nullable=True)
+# CREATE TABLE if not exists tb_admin_user (
+# 	id INTEGER PRIMARY KEY autoincrement,
+# 	user_name varchar(64) NULL,
+# 	code varchar(64) not NULL,
+# 	pwd varchar(64) NULL,
+# 	type int DEFAULT 0,--0:临时用户，1：长期用户， -1：管理员
+# 	create_time timestamp
+# );
+
+class AdminUserDao():
+    def getByPwd(self, pwd):
+        return db.session.query(AdminUser).filter(AdminUser.pwd == pwd).first()
+
+    # 是否已经注册
+    def check(self, code, pwd):
+        # db = http_channel.db
+        if(not code):
+            user = db.session.query(AdminUser).filter(AdminUser.pwd == pwd).first()
         else:
-            return render_template('login.html')
-    response.headers.set('location', './login?err=登录失败')
-    return response
+            user = db.session.query(AdminUser).filter(
+            AdminUser.code == code and AdminUser.pwd == pwd).first()
+        if user:
+            return True
+        return False
+
+    def getByCode(self, code):
+        return db.session.query(AdminUser).filter(AdminUser.code == code).first()
+
+    # 是否还有次数
+    def check_times(self, code):
+        key = REDIS_KEY + code
+        user = self.getByCode(code)
+        if not user:            
+            # 不存在用户
+            return False
+        log.debug('user exists, code={}.'.format(code))
+        # 普通帐户一天只有n次
+        if user.type == 0:
+            times = redis_db.get(key)
+            # 第一次使用
+            if not times:
+                redis_db.set(name=key, value=USE_TIMES, ex=EXPIRE_TIME)
+                return True
+            log.debug("user times, times={}".format(redis_db.get(key)))
+            print("user times, times={}".format(redis_db.get(key)))
+            if times:
+                redis_db.set(key, int(times) - 1)
+                if int(times) <= 0:
+                    return False
+        return True
+
+    def insert(self, code):
+        key = REDIS_KEY + code
+        user = self.getByCode(code)
+        if user:
+            log.debug('user exists, code={}.'.format(code))
+            return user.pwd
+        user = AdminUser()
+        # adminUser.code = str(uuid.uuid1()).replace("-", "")
+        user.code = code
+        user.pwd = short_uuid()
+        user.type = 0
+        db.session.add_all([user])
+        db.session.commit()
+        log.debug('user create success, code={}.'.format(code))
+        redis_db.set(name=key, value=USE_TIMES, ex=EXPIRE_TIME)
+        return user.pwd
 
 
-class HttpChannel(Channel):
-    def startup(self):
-        
-        http_app.run(host='0.0.0.0', port=channel_conf(const.HTTP).get('port'))
-        db.init_app(http_app)
-        
+# 第一个参数就是路径,第二个参数支持的请求方式，不写的话默认是get
+@app.route('/insert/<code>', methods=['get'])
+def insert(code):
+    adminUserDao = AdminUserDao()
+    r = adminUserDao.insert(code)
+    log.debug(r)
+    return r
+@app.route('/check_times/<code>', methods=['get'])
+def check_times(code):
+    adminUserDao = AdminUserDao()
+    return str(adminUserDao.check_times(code))
 
-    def handle(self, data):
-        context = dict()
-        img_match_prefix = functions.check_prefix(
-            data["msg"], channel_conf_val(const.HTTP, 'image_create_prefix'))
-        if img_match_prefix:
-            data["msg"] = data["msg"].split(img_match_prefix, 1)[1].strip()
-            context['type'] = 'IMAGE_CREATE'
-        id = data["id"]
-        context['from_user_id'] = str(id)
-        context['model_type'] = data.get('model_type')
-        reply = super().build_reply_content(data["msg"], context)
-        if img_match_prefix:
-            if not isinstance(reply, list):
-                return reply
-            images = ""
-            for url in reply:
-                images += f"[!['IMAGE_CREATE']({url})]({url})\n"
-            reply = images
-        return reply
+uuidChars = ("a", "b", "c", "d", "e", "f",
+             "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
+             "t", "u", "v", "w", "x", "y", "z", "0", "1", "2", "3", "4", "5",
+             "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H", "I",
+             "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+             "W", "X", "Y", "Z")
+
+
+def short_uuid():
+    uuid = str(uuid4()).replace('-', '')
+    result = ''
+    for i in range(0, 8):
+        sub = uuid[i * 4: i * 4 + 4]
+        x = int(sub, 16)
+        result += uuidChars[x % 0x3E]
+    return result
+
+
+# if __name__ == '__main__':
+#     try:
+#         db = SQLAlchemy(app)
+#         app.run(port=8081, debug=True, host='0.0.0.0')
+#     except Exception as e:
+#         log.error("App startup failed!")
