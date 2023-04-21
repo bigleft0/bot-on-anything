@@ -9,6 +9,8 @@ from common import functions
 from config import channel_conf
 from config import channel_conf_val
 from channel.channel import Channel
+import config
+from flask_sqlalchemy import SQLAlchemy  # 使得数据库开始连接
 
 http_app = Flask(__name__,)
 # 自动重载模板文件
@@ -16,7 +18,12 @@ http_app.jinja_env.auto_reload = True
 http_app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # 设置静态文件缓存过期时间
-http_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
+http_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=10)
+# 连接或创建数据库
+http_app.config['SQLALCHEMY_DATABASE_URI'] = r'sqlite:///' + config.get_db_uri()
+# # 动态追踪修改设置，如未设置只会提示警告
+http_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+db = SQLAlchemy()
 
 
 @http_app.route("/chat", methods=['POST'])
@@ -60,7 +67,10 @@ def login():
 
 class HttpChannel(Channel):
     def startup(self):
+        
         http_app.run(host='0.0.0.0', port=channel_conf(const.HTTP).get('port'))
+        db.init_app(http_app)
+        
 
     def handle(self, data):
         context = dict()
@@ -71,7 +81,7 @@ class HttpChannel(Channel):
             context['type'] = 'IMAGE_CREATE'
         id = data["id"]
         context['from_user_id'] = str(id)
-        context['model_type'] = data.get('model_type','')
+        context['model_type'] = data.get('model_type')
         reply = super().build_reply_content(data["msg"], context)
         if img_match_prefix:
             if not isinstance(reply, list):
