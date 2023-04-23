@@ -8,12 +8,13 @@ from common import const
 from config import channel_conf
 import sys
 import os
+from database import admin_user
 
 this_dir = os.path.dirname(__file__)
 sys.path.append(this_dir)
 sys.path.append(os.path.join(this_dir, '..'))
 sys.path.append(os.path.join(this_dir, '..', 'database'))
-from database import admin_user
+
 
 class Auth():
     def __init__(self, login):
@@ -71,6 +72,7 @@ class Auth():
 
 
 def authenticate(user_id, password):
+    from database import admin_user
     """
     用户登录，登录成功返回token
     :param password:
@@ -87,6 +89,7 @@ def authenticate(user_id, password):
 
 
 def identify(request):
+    
     """
     用户鉴权
     :return: list
@@ -105,7 +108,34 @@ def identify(request):
                     const.HTTP).get('http_auth_password')
                 user_id = payload['data']['id']
                 password = payload['data'].get('password')
-                if (admin_user.AdminUserDao().check(user_id,password) and admin_user.AdminUserDao().check_times(user_id)):
+                if admin_user.AdminUserDao().check(user_id,password):
+                    return True
+                else:
+                    return False
+        return False
+ 
+    except jwt.ExpiredSignatureError:
+        #result = 'Token已更改，请重新登录获取'
+        return False
+ 
+    except jwt.InvalidTokenError:
+        #result = '没有提供认证token'
+        return False
+
+def check_times(request):
+    """
+    用户使用次数鉴权
+    :return: list
+    """
+    try:
+        if (request is None):
+            return False
+        authorization = request.cookies.get('Authorization')
+        if (authorization):
+            payload = Auth.decode_auth_token(authorization)
+            if not isinstance(payload, str):
+                user_id = payload['data']['id']
+                if admin_user.AdminUserDao().check_times(user_id):
                     return True
                 else:
                     return False

@@ -11,7 +11,8 @@ from config import channel_conf_val
 from channel.channel import Channel
 import config
 from flask_sqlalchemy import SQLAlchemy  # 使得数据库开始连接
-
+from database.admin_user import db
+from database import admin_user  
 http_app = Flask(__name__,)
 # 自动重载模板文件
 http_app.jinja_env.auto_reload = True
@@ -23,13 +24,16 @@ http_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=10)
 http_app.config['SQLALCHEMY_DATABASE_URI'] = r'sqlite:///' + config.get_db_uri()
 # # 动态追踪修改设置，如未设置只会提示警告
 http_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
-db = SQLAlchemy()
+
 db.init_app(http_app)
 
 @http_app.route("/chat", methods=['POST'])
 def chat():
     if (auth.identify(request) == False):
-        return
+        return {'result': '用户校验错误，请重新登录！'} 
+    if not auth.check_times(request):
+        return {'result': '今日已超过使用次数，请明天再试，谢谢！'} 
+
     data = json.loads(request.data)
     if data:
         msg = data['msg']

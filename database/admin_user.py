@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 from flask import request, Response, make_response
+from flask import current_app as app
 import json
 import flask
 from flask_sqlalchemy import SQLAlchemy  # 使得数据库开始连接
@@ -28,27 +29,21 @@ sys.path.append(this_dir)
 sys.path.append(os.path.join(this_dir, '..'))
 sys.path.append(os.path.join(this_dir, '..', 'http'))
 print(sys.path)
-# from channel.http import http_channel
-# from channel.http import http_channel as http_channel
+
 import logging as log
 import config
 
-# app = http_channel.http_app
-# app = flask.current_app
+redis_db = config.get_redis()
+
 db = SQLAlchemy()
 
-redis_db = config.get_redis()
-# app = http_app
-# db = http_channel.db
-# db = SQLAlchemy()
-# db.init_app(app)
 # 相当于Django model
 Base = declarative_base()
-REDIS_KEY = "bot.user.times"
+REDIS_KEY = "bot.user.times."
 # 普通帐户使用次数
-USE_TIMES = 5
+USE_TIMES = 20
 # 过期时间(秒)
-EXPIRE_TIME = 60*10
+EXPIRE_TIME = 60*60*12
 
 class AdminUser(Base):
     __tablename__ = "tb_admin_user"
@@ -59,14 +54,6 @@ class AdminUser(Base):
     pwd = Column(String(64), nullable=True)
     type = Column(Integer, nullable=True)
     create_time = Column(String(64), nullable=True)
-# CREATE TABLE if not exists tb_admin_user (
-# 	id INTEGER PRIMARY KEY autoincrement,
-# 	user_name varchar(64) NULL,
-# 	code varchar(64) not NULL,
-# 	pwd varchar(64) NULL,
-# 	type int DEFAULT 0,--0:临时用户，1：长期用户， -1：管理员
-# 	create_time timestamp
-# );
 
 class AdminUserDao():
     def getByPwd(self, pwd):
@@ -74,11 +61,7 @@ class AdminUserDao():
 
     # 是否已经注册
     def check(self, code, pwd):
-        # db = http_channel.db
-        if(not code):
-            user = db.session.query(AdminUser).filter(AdminUser.pwd == pwd).first()
-        else:
-            user = db.session.query(AdminUser).filter(
+        user = db.session.query(AdminUser).filter(
             AdminUser.code == code and AdminUser.pwd == pwd).first()
         if user:
             return True
@@ -102,8 +85,8 @@ class AdminUserDao():
             if not times:
                 redis_db.set(name=key, value=USE_TIMES, ex=EXPIRE_TIME)
                 return True
-            log.debug("user times, times={}".format(redis_db.get(key)))
-            print("user times, times={}".format(redis_db.get(key)))
+            log.debug("user times, code={}, times={}".format(code, redis_db.get(key)))
+            print("user times, code={}, times={}".format(code, redis_db.get(key)))
             if times:
                 redis_db.set(key, int(times) - 1)
                 if int(times) <= 0:

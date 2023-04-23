@@ -64,8 +64,8 @@ def get_db_uri():
     return os.path.join(get_root(),'database','bot.db')
 
 
-
 # 连接 Redis 服务器
 def get_redis():
-    return redis.Redis(host='10.42.57.150',
-        password='Tf1qpKJs', port=7019, db=0)
+    return redis.Redis(host='47.251.59.183',
+        password='luansjr', port=6379, db=0)
+
