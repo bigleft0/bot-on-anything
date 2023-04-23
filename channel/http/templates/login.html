@@ -38,7 +38,10 @@
 
 <body class="">
     <form name="login" class="login-form" action="./login" method="post" autocomplete="off">
-        <input type="password" name="password" placeholder="Password" style="border: none; height: 25px;width: 250px;"
+        <input type="text" name="user_id" placeholder="用户名" style="border: none; height: 25px;width: 250px;"
+            required>
+        </input>
+        <input type="password" name="password" placeholder="邀请码" style="border: none; height: 25px;width: 250px;"
             required>
         </input>
         <input type="submit" class="Button" value="登录" />

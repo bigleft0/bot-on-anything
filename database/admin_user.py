@@ -28,11 +28,14 @@ sys.path.append(this_dir)
 sys.path.append(os.path.join(this_dir, '..'))
 sys.path.append(os.path.join(this_dir, '..', 'http'))
 print(sys.path)
-from http_channel import db
-from http_channel import http_app as app
+# from channel.http import http_channel
+# from channel.http import http_channel as http_channel
 import logging as log
 import config
 
+# app = http_channel.http_app
+# app = flask.current_app
+db = SQLAlchemy()
 
 redis_db = config.get_redis()
 # app = http_app
@@ -126,13 +129,13 @@ class AdminUserDao():
 
 
 # 第一个参数就是路径,第二个参数支持的请求方式，不写的话默认是get
-@app.route('/insert/<code>', methods=['get'])
+# @app.route('/insert/<code>', methods=['get'])
 def insert(code):
     adminUserDao = AdminUserDao()
     r = adminUserDao.insert(code)
     log.debug(r)
     return r
-@app.route('/check_times/<code>', methods=['get'])
+# @app.route('/check_times/<code>', methods=['get'])
 def check_times(code):
     adminUserDao = AdminUserDao()
     return str(adminUserDao.check_times(code))

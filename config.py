@@ -2,7 +2,7 @@
 
 import json
 import os
-
+import redis
 config = {}
 
 
@@ -58,3 +58,14 @@ def common_conf_val(key, default=None):
     if not config.get('common'):
         return default
     return config.get('common').get(key, default)
+
+def get_db_uri():
+
+    return os.path.join(get_root(),'database','bot.db')
+
+
+
+# 连接 Redis 服务器
+def get_redis():
+    return redis.Redis(host='10.42.57.150',
+        password='Tf1qpKJs', port=7019, db=0)

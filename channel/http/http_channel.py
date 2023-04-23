@@ -24,7 +24,7 @@ http_app.config['SQLALCHEMY_DATABASE_URI'] = r'sqlite:///' + config.get_db_uri()
 # # 动态追踪修改设置，如未设置只会提示警告
 http_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy()
-
+db.init_app(http_app)
 
 @http_app.route("/chat", methods=['POST'])
 def chat():
@@ -55,7 +55,7 @@ def login():
         return response
     else:
         if request.method == "POST":
-            token = auth.authenticate(request.form['password'])
+            token = auth.authenticate(request.form['user_id'], request.form['password'])
             if (token != False):
                 response.set_cookie(key='Authorization', value=token)
                 return response
@@ -69,9 +69,8 @@ class HttpChannel(Channel):
     def startup(self):
         
         http_app.run(host='0.0.0.0', port=channel_conf(const.HTTP).get('port'))
-        db.init_app(http_app)
         
-
+        
     def handle(self, data):
         context = dict()
         img_match_prefix = functions.check_prefix(
